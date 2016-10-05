@@ -15,8 +15,10 @@ public class battle : MonoBehaviour
     }
 
     //キャラクター生成  名前は後で変える
-    public character ch1 = new character();
-    public character ch2 = new character();
+    public character[] ally = new character[2];
+    int numberofallys = 2;
+    public character[] enemy = new character[1];
+    int numberofenemys = 1;
     //キャンバス取得   UIの関係で必要
     GameObject canvas;
     //ボタン作成の為
@@ -27,21 +29,35 @@ public class battle : MonoBehaviour
     // Use this for initialization
     void Start()
     {
-        //canvas取得
-        canvas = GameObject.Find("Canvas");
+        for (int i = 0; i < numberofallys; i++) {
+            ally[i] = new character();
+
+        }
+        for (int i = 0; i < numberofenemys; i++) {
+            enemy[i] = new character();
+
+        }
+            //canvas取得
+            canvas = GameObject.Find("Canvas");
         //キャラクターの追加、characterdataをデータベースにしてそこからキャラを読み込む
         //敵味方、表示するアイコン、アイコンの縦の位置はこっちで書かないと駄目
-        ch1.illear();
-        ch1.force = (int)my.ally;   //現在未使用
-        ch1.icon = Instantiate(Resources.Load("Prefabs/Icon"), new Vector2(ch1.wait, -30), Quaternion.identity) as GameObject;    //初期位置
-        ch1.icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
-        ch1.icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ch1.currentlevel.ToString(); //初期レベルの表示
+        ally[0].illear();
+        ally[0].force = (int)my.ally;   //現在未使用
+        ally[0].icon = Instantiate(Resources.Load("Prefabs/Icon"), new Vector2(ally[0].wait, -30), Quaternion.identity) as GameObject;    //初期位置
+        ally[0].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        ally[0].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ally[0].currentlevel.ToString(); //初期レベルの表示
         //ch2
-        ch2.lullshare();
-        ch2.force = (int)my.ally;
-        ch2.icon = Instantiate(Resources.Load("Prefabs/Icon2"), new Vector2(ch1.wait, -70), Quaternion.identity) as GameObject;    //初期位置
-        ch2.icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
-        ch2.icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ch2.currentlevel.ToString(); //初期レベルの表示
+        ally[1].lullshare();
+        ally[1].force = (int)my.ally;
+        ally[1].icon = Instantiate(Resources.Load("Prefabs/Icon2"), new Vector2(ally[1].wait, -70), Quaternion.identity) as GameObject;    //初期位置
+        ally[1].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        ally[1].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ally[1].currentlevel.ToString(); //初期レベルの表示
+        //敵
+        enemy[0].azel();
+        enemy[0].force = (int)my.enemy;
+        enemy[0].icon = Instantiate(Resources.Load("Prefabs/Icon3"), new Vector2(enemy[0].wait, 50), Quaternion.identity) as GameObject;    //初期位置
+        enemy[0].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        enemy[0].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = enemy[0].currentlevel.ToString(); //初期レベルの表示
         //本編開始
         StartCoroutine(coroutine());
 
@@ -65,7 +81,7 @@ public class battle : MonoBehaviour
             }*/
 
 
-            yield return StartCoroutine(checkallcharacter(ch1, ch2));     //複数キャラ分
+            yield return StartCoroutine(checkallcharacter(ally[0], ally[1], enemy[0]));     //複数キャラ分
             
             //行動可能な場合
             /*else if (ch1.wait <= 0)             //後々checkallcharacterに統合する
@@ -83,7 +99,7 @@ public class battle : MonoBehaviour
                 yield return 0;
             }
              */
-            yield return new WaitForSeconds(0.005f); 
+            //yield return new WaitForSeconds(0.005f); 
             
         }
     }
@@ -98,6 +114,7 @@ public class battle : MonoBehaviour
         //ボタン入力の受付、使わなくなったら切らないと駄目?
         button1.GetComponent<Button>().onClick.AddListener(() =>
             {
+                
                 //攻撃時－固定値/素早さ
                 ch.wait = 2000 / ch.agility;  //要調整
                 ch.currentlevel = ch.level;   //現在のレベルを元々のレベルにする
@@ -171,7 +188,6 @@ public class battle : MonoBehaviour
 
         if (active.Length == 1) {
 
-            Debug.Log(active.Length.ToString());
             yield return StartCoroutine(action(active[0]));
             yield return 0;
         }
@@ -187,7 +203,7 @@ public class character : characterdata  {
 
     public void movetoleft() {
         wait -= 5;
-        icon.transform.localPosition = new Vector2((wait-200f)/*/(512f/Screen.width)*/, icon.transform.localPosition.y);
+        icon.transform.localPosition = new Vector2((wait-200f), icon.transform.localPosition.y);
         //Debug.Log(name);         
         //Debug.Log(wait.ToString());               //デバッグ用
 
@@ -233,6 +249,21 @@ public class characterdata {
             deffence = 3;
             agility = 5;
             wait = 150;
+            called = true;
+        }
+    }
+
+    public void azel()
+    {
+        if (called != true)
+        {
+            name = "azel";
+            level = 7;
+            currentlevel = 7;
+            attack = 10;
+            deffence = 3;
+            agility = 1;
+            wait = 500;
             called = true;
         }
     }
