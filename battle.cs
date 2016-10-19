@@ -2,6 +2,8 @@
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.Events;
+using character;
+using party;
 
 
 
@@ -12,6 +14,7 @@ public class battle : MonoBehaviour
         ally = 0,
         enemy = 1
     }
+    //行動判別 selectactionで使用
     public enum act
     {
         none = 0,
@@ -21,33 +24,52 @@ public class battle : MonoBehaviour
     }
     public int stat;
 
-    //キャラクター生成  名前は後で変える
-    public character[] ally = new character[2];
-    int numberofallys = 2;
-    public character[] enemy = new character[2];
+    //キャラクター読み込み用
+    party.partymember partyinfo;
+    public character.character[] ally = new character.character[2];
+    int numberofallys;
+    
+    public character.character[] enemy = new character.character[2];
     int numberofenemys = 2;
-    //攻撃相手
-    character target;
+
+    //戦闘に参加する全キャラ保管
+    character.character[] allcharacter = new character.character[1];
+    int i;
+    int j;
+
+    //攻撃相手取得用
+    character.character target;
+    GameObject targeticon;
     public GameObject[] enemyicon = new GameObject[2];
+
+    //予想される行動後の位置
+    public GameObject expectedposition;
+    GameObject expectedknockback;
+
     //キャンバス取得   UIの関係で必要
     GameObject canvas;
+
     //ボタン作成の為
-    GameObject button1;
-    GameObject button2;
-    GameObject button3;
+    GameObject attackbutton;
+    GameObject castbutton;
+    GameObject unisonbutton;
 
     GameObject previous;
     GameObject next;
+    GameObject attacktarget;
 
     // Use this for initialization
     void Start() {
+        //unityにsceneを跨いで存在するpartyinfoを作ってそこから読み出し
+        partyinfo = GameObject.Find("partyinfo").GetComponent<partymember>();
+        numberofallys = partyinfo.ally.Length;
         //敵味方初期化
-        for (int i = 0; i < numberofallys; i++) {
-            ally[i] = new character();
+        for (i = 0; i < numberofallys; i++) {
+            ally[i] = partyinfo.ally[i];
         }
-        for (int i = 0; i < numberofenemys; i++) {
-            enemy[i] = new character();
-           // enemyicon[i] = Resources.Load(enemy[i].name) as GameObject;
+        //現状敵は新しく作るしかない
+        for (i = 0; i < numberofenemys; i++) {
+            enemy[i] = new character.character();
         }
 
         //canvas取得
@@ -55,7 +77,7 @@ public class battle : MonoBehaviour
         //キャラクターの追加、characterdataをデータベースにしてそこからキャラを読み込む
         //敵味方、表示するアイコン、アイコンの縦の位置はこっちで書かないと駄目
         //味方1
-        ally[0].illear();
+/*        ally[0].illear();
         ally[0].force = (int)my.ally;   //現在未使用
         ally[0].icon = Instantiate(Resources.Load("Prefabs/Icon"), new Vector2(ally[0].wait, -30), Quaternion.identity) as GameObject;    //初期位置
         ally[0].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
@@ -66,6 +88,16 @@ public class battle : MonoBehaviour
         ally[1].icon = Instantiate(Resources.Load("Prefabs/Icon2"), new Vector2(ally[1].wait, -70), Quaternion.identity) as GameObject;    //初期位置
         ally[1].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
         ally[1].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ally[1].currentlevel.ToString(); //初期レベルの表示
+*/
+        //緊急対応　味方のアイコン付ける
+        ally[0].icon = Instantiate(Resources.Load("Prefabs/Icon"), new Vector2(ally[0].wait, -30), Quaternion.identity) as GameObject;    //初期位置
+        ally[0].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        ally[0].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ally[0].currentlevel.ToString(); //初期レベルの表示
+        ally[1].icon = Instantiate(Resources.Load("Prefabs/Icon2"), new Vector2(ally[1].wait, -70), Quaternion.identity) as GameObject;    //初期位置
+        ally[1].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        ally[1].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = ally[1].currentlevel.ToString(); //初期レベルの表示
+ 
+        
         //敵1
         enemy[0].azel();
         enemy[0].force = (int)my.enemy;
@@ -77,6 +109,19 @@ public class battle : MonoBehaviour
         enemy[1].icon = Instantiate(Resources.Load("Prefabs/Icon4"), new Vector2(enemy[0].wait, 90), Quaternion.identity) as GameObject;    //初期位置
         enemy[1].icon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
         enemy[1].icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = enemy[0].currentlevel.ToString(); //初期レベルの表示
+        
+        //全キャラリストに味方記入
+        for (i = 0; i < numberofallys; i++) {
+            System.Array.Resize(ref allcharacter, i+1);
+            allcharacter[i] = ally[i];
+        }
+        //全キャラリストに敵記入
+        for (j = 0; j < numberofenemys; j++)
+        {
+            System.Array.Resize(ref allcharacter, i + j + 1);
+            allcharacter[i+j] = enemy[j];
+        }
+
         //本編開始
         StartCoroutine(coroutine());
     }
@@ -90,47 +135,101 @@ public class battle : MonoBehaviour
         while (true) {
 
             //行動可能か確認
-            yield return StartCoroutine(checkallcharacter(ally[0], ally[1], enemy[0], enemy[1]));     //複数キャラ分
+            yield return StartCoroutine(checkallcharacter());     //複数キャラ分
 
             //yield return new WaitForSeconds(0.005f); //ウェイト
         }
     }
 
+    IEnumerator checkallcharacter()
+    {
+        //回し用変数
+        j = 0;
+        //行動可能な奴を貯める変数
+        character.character[] active = new character.character[allcharacter.Length];
+        //行動可能か判定
+        for (i = 0; i < allcharacter.Length; i++)
+        {
+            if (allcharacter[i].wait <= 0)
+            {
+                active[j] = allcharacter[i];
+                j++;
+            }
+        }
+        //配列のサイズを変更
+        System.Array.Resize(ref active, j);
+
+        //もし行動可能配列が0 = 誰も行動出来ないなら左に動かす
+        if (active.Length == 0)
+        {
+            for (i = 0; i < allcharacter.Length; i++)
+            {
+                movetoleft(allcharacter[i]);
+            }
+            yield return 0;
+        }
+        //行動可能が一人のみ
+        if (active.Length == 1)
+        {
+            yield return StartCoroutine(selectaction(active[0]));
+            yield return 0;
+        }
+        //行動可能が複数
+        if (active.Length > 1)
+        {
+            yield return StartCoroutine(selectaction(active));
+            yield return 0;
+        }
+        yield return 0;
+    }
+
+    void movetoleft(character.character nonactivecharacter) {
+        nonactivecharacter.wait -= 5;
+        nonactivecharacter.icon.transform.localPosition = new Vector2((nonactivecharacter.wait-200f), nonactivecharacter.icon.transform.localPosition.y);
+        //Debug.Log(name);         
+        //Debug.Log(wait.ToString());               //デバッグ用
+    }
+
     //行動
-    IEnumerator action(params character[] activecharacter) {
+    IEnumerator selectaction(params character.character[] activecharacter)
+    {
         //ボタン生成
-        button1 = Instantiate(Resources.Load("Prefabs/attack"), new Vector2(-160, 0), Quaternion.identity) as GameObject;
+        attackbutton = Instantiate(Resources.Load("Prefabs/attack"), new Vector2(-160, 0), Quaternion.identity) as GameObject;
         //キャンバスの子オブジェクト化
-        button1.transform.SetParent(canvas.transform, false);
+        attackbutton.transform.SetParent(canvas.transform, false);
         //ボタン入力の受付、使わなくなったら切らないと駄目?
-        button1.GetComponent<Button>().onClick.AddListener(() =>
+        attackbutton.GetComponent<Button>().onClick.AddListener(() =>
             {
                 stat = (int)act.attack;
                 //使用済みのボタン  全部ﾌﾞｯｸｽすんだ
-                Destroy(button1);
-                Destroy(button2);
-                Destroy(button3);
+                Destroy(attackbutton);
+                Destroy(castbutton);
+                Destroy(unisonbutton);
             });
         //以下略
-        button2 = Instantiate(Resources.Load("Prefabs/cast"), new Vector2(0, 0), Quaternion.identity) as GameObject;
-        button2.transform.SetParent(canvas.transform, false);
-        button2.GetComponent<Button>().onClick.AddListener(() =>
+        castbutton = Instantiate(Resources.Load("Prefabs/cast"), new Vector2(0, 0), Quaternion.identity) as GameObject;
+        castbutton.transform.SetParent(canvas.transform, false);
+        castbutton.GetComponent<Button>().onClick.AddListener(() =>
         {
             stat = (int)act.cast;
-            //cast(activecharacter); 
-            Destroy(button1);
-            Destroy(button2);
-            Destroy(button3);
+            //cast(activecharacter);
+            Destroy(attackbutton);
+            Destroy(castbutton);
+            Destroy(unisonbutton);
         });
-        button3 = Instantiate(Resources.Load("Prefabs/unison"), new Vector2(160, 0), Quaternion.identity) as GameObject;
-        button3.transform.SetParent(canvas.transform, false);
-        button3.GetComponent<Button>().onClick.AddListener(() =>
+        unisonbutton = Instantiate(Resources.Load("Prefabs/unison"), new Vector2(160, 0), Quaternion.identity) as GameObject;
+        unisonbutton.transform.SetParent(canvas.transform, false);
+        unisonbutton.GetComponent<Button>().onClick.AddListener(() =>
         {
                                             //しらね
-            Destroy(button1);
-            Destroy(button2);
-            Destroy(button3);
+            Destroy(attackbutton);
+            Destroy(castbutton);
+            Destroy(unisonbutton);
         });
+
+        expectedposition = Instantiate(activecharacter[0].icon, new Vector2(2000 / activecharacter[0].agility - 200, activecharacter[0].icon.transform.localPosition.y), Quaternion.identity) as GameObject;
+        expectedposition.transform.SetParent(canvas.transform, false);
+        expectedposition.gameObject.transform.FindChild("icon").GetComponent<SpriteRenderer>().color = new Color(255, 255, 255, 0.5f); 
 
         stat = 0;
         while (stat != -1)
@@ -160,54 +259,18 @@ public class battle : MonoBehaviour
 
             }
         }
-        yield return 0;
-    }
-
-    IEnumerator checkallcharacter(params character[] allcharacter) { 
-        //回し用変数
-        int i;
-        int j;
-
-
-        j = 0;
-        //行動可能な奴を貯める変数
-        character[] active = new character[allcharacter.Length];
-        //行動可能か判定
-        for (i = 0; i < allcharacter.Length; i++) {
-            if (allcharacter[i].wait <= 0) {
-                active[j] = allcharacter[i];
-                j++;
-            }
-        }
-        //配列のサイズを変更
-        System.Array.Resize(ref active, j);
-        //Debug.Log(active.Length.ToString());
-        //もし行動可能配列が0 = 誰も行動出来ないなら左に動かす
-        if (active.Length == 0) {
-            for (i = 0; i < allcharacter.Length; i++) {
-                allcharacter[i].movetoleft();
-            }
-            yield return 0;
-        }
-
-        if (active.Length == 1)
-        {
-            yield return StartCoroutine(action(active[0]));
-            yield return 0;
-        } 
-        if (active.Length > 1)
-        {
-            yield return StartCoroutine(action(active));
-            yield return 0;
-        }
+        Destroy(expectedposition);
         yield return 0;
     }
 
     IEnumerator selecttarget() {
+
         bool targetselected = false;
+
+
         target = enemy[0];
-        target.icon2 = Instantiate(enemyicon[0], new Vector2(150, 0), Quaternion.identity) as GameObject;
-        target.icon2.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+        targeticon = Instantiate(enemyicon[0], new Vector2(150, 0), Quaternion.identity) as GameObject;
+        targeticon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
         int x = 0; ;
         previous = Instantiate(Resources.Load("Prefabs/previous"), new Vector2(100, -50), Quaternion.identity) as GameObject;
         previous.transform.SetParent(canvas.transform, false);
@@ -216,19 +279,30 @@ public class battle : MonoBehaviour
             x += numberofenemys -1;
             x = x % numberofenemys;
             target = enemy[x];
-            Destroy(target.icon2);
-            //target.icon = enemyicon[x];
-            target.icon2 = Instantiate(enemyicon[x], new Vector2(150, 0), Quaternion.identity) as GameObject;
-            target.icon2.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+            Destroy(targeticon);
+            targeticon = Instantiate(enemyicon[x], new Vector2(150, 0), Quaternion.identity) as GameObject;
+            targeticon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
         });
         //以下略
         next = Instantiate(Resources.Load("Prefabs/next"), new Vector2(200, -50), Quaternion.identity) as GameObject;
         next.transform.SetParent(canvas.transform, false);
         next.GetComponent<Button>().onClick.AddListener(() =>
         {
-            Destroy(target.icon2);
+            x += numberofenemys +1;
+            x = x % numberofenemys;
+            target = enemy[x];
+            Destroy(targeticon);
+            targeticon = Instantiate(enemyicon[x], new Vector2(150, 0), Quaternion.identity) as GameObject;
+            targeticon.transform.SetParent(canvas.transform, false);  //Canvasの子オブジェクトとして生成
+         }); 
+        attacktarget = Instantiate(Resources.Load("Prefabs/attack"), new Vector2(150, -150), Quaternion.identity) as GameObject;
+        attacktarget.transform.SetParent(canvas.transform, false);
+        attacktarget.GetComponent<Button>().onClick.AddListener(() =>
+        {
+            Destroy(targeticon);
             Destroy(next);
             Destroy(previous);
+            Destroy(attacktarget);
             targetselected = true;
         });
         while (targetselected == false) {
@@ -238,10 +312,12 @@ public class battle : MonoBehaviour
         yield return 0;
     }
 
-    IEnumerator attack(character activecharacter)
+    IEnumerator attack(character.character activecharacter)
     {
         //Debug.Log(target.wait.ToString());
         int damage =  activecharacter.attack * activecharacter.currentlevel;
+
+
         //攻撃時－固定値/素早さ
         this.gameObject.transform.FindChild("Text").GetComponent<Text>().text =damage.ToString();
         activecharacter.wait = 2000 / activecharacter.agility;  //要調整
@@ -251,7 +327,8 @@ public class battle : MonoBehaviour
         yield return 0;
     }
 
-    IEnumerator cast(character activecharacter) {
+    IEnumerator cast(character.character activecharacter)
+    {
         activecharacter.wait = 1000 / activecharacter.agility;  //要調整   いっそのこと各キャラに固定値割り振るか
         activecharacter.currentlevel += 2;          //現在のレベル+2
         activecharacter.icon.gameObject.transform.FindChild("Text").gameObject.GetComponent<Text>().text = activecharacter.currentlevel.ToString();
@@ -259,7 +336,7 @@ public class battle : MonoBehaviour
     }
 
 }
-
+/*
 public class character : characterdata  {
 
     public void movetoleft() {
@@ -344,3 +421,4 @@ public class characterdata {
 }
 
 
+*/
